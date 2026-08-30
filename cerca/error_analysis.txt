@@ -1,0 +1,48 @@
+Experiment: 20260728_225813
+Fault Type: cpu
+True Root Cause: social-graph-service (Rank 3)
+Predicted Root Cause: url-shorten-service (Rank 1)
+Reasoning:
+  Predicted RC Scores: {'rank': 1, 'service': 'url-shorten-service', 'cerca_score': 0.547696174458466, 'anomaly_score': 0.49999999994176386, 'reliability_weight': 1.0283792971154595}
+  True RC Scores: {'rank': 3, 'service': 'social-graph-service', 'cerca_score': 0.3242617708776153, 'anomaly_score': 0.07392329202092131, 'reliability_weight': 1.0102407234758082}
+---------------------------------------------------
+Experiment: 20260728_230237
+Fault Type: cpu
+True Root Cause: post-storage-service (Rank 4)
+Predicted Root Cause: url-shorten-service (Rank 1)
+Reasoning:
+  Predicted RC Scores: {'rank': 1, 'service': 'url-shorten-service', 'cerca_score': 0.5480200567103302, 'anomaly_score': 0.49999999993889643, 'reliability_weight': 1.0264402376549577}
+  True RC Scores: {'rank': 4, 'service': 'post-storage-service', 'cerca_score': 0.25658411207854465, 'anomaly_score': 0.10673087509139799, 'reliability_weight': 1.092194047514465}
+---------------------------------------------------
+Experiment: 20260728_230630
+Fault Type: memory
+True Root Cause: home-timeline-service (Rank 6)
+Predicted Root Cause: url-shorten-service (Rank 1)
+Reasoning:
+  Predicted RC Scores: {'rank': 1, 'service': 'url-shorten-service', 'cerca_score': 0.5477864371999389, 'anomaly_score': 0.49999999993696403, 'reliability_weight': 1.0254617609684327}
+  True RC Scores: {'rank': 6, 'service': 'home-timeline-service', 'cerca_score': 0.1940621342522029, 'anomaly_score': 0.10519696019202299, 'reliability_weight': 1.0549796424190343}
+---------------------------------------------------
+Experiment: 20260728_231039
+Fault Type: memory
+True Root Cause: user-timeline-service (Rank 7)
+Predicted Root Cause: url-shorten-service (Rank 1)
+Reasoning:
+  Predicted RC Scores: {'rank': 1, 'service': 'url-shorten-service', 'cerca_score': 0.5479308912119453, 'anomaly_score': 0.49999999993359534, 'reliability_weight': 1.0237446582176721}
+  True RC Scores: {'rank': 7, 'service': 'user-timeline-service', 'cerca_score': 0.1740887704920634, 'anomaly_score': 0.07807178079044519, 'reliability_weight': 1.0572908312991882}
+---------------------------------------------------
+Experiment: 20260728_231455
+Fault Type: restart
+True Root Cause: media-service (Rank 8)
+Predicted Root Cause: url-shorten-service (Rank 1)
+Reasoning:
+  Predicted RC Scores: {'rank': 1, 'service': 'url-shorten-service', 'cerca_score': 0.5489702683647882, 'anomaly_score': 0.49999999993052674, 'reliability_weight': 1.022766187490705}
+  True RC Scores: {'rank': 8, 'service': 'media-service', 'cerca_score': 0.15856691027462796, 'anomaly_score': 0.10387206522597543, 'reliability_weight': 0.9538409538621593}
+---------------------------------------------------
+Experiment: 20260728_231909
+Fault Type: restart
+True Root Cause: text-service (Rank 10)
+Predicted Root Cause: url-shorten-service (Rank 1)
+Reasoning:
+  Predicted RC Scores: {'rank': 1, 'service': 'url-shorten-service', 'cerca_score': 0.549760319621601, 'anomaly_score': 0.49999999992706934, 'reliability_weight': 1.0216516333485217}
+  True RC Scores: {'rank': 10, 'service': 'text-service', 'cerca_score': 0.1394307785173064, 'anomaly_score': 0.0778869063784611, 'reliability_weight': 0.9997701753016808}
+---------------------------------------------------

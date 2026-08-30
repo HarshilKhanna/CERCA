@@ -1,0 +1,18 @@
+# Jaeger client configuration
+# Mounted into all DeathStarBench service containers at:
+#   /social-network-microservices/config/jaeger-config.yml
+#
+# 100% probabilistic sampling ensures every span is captured during experiments.
+# Adjust `param` to 0.1 (10%) for high-throughput production-like scenarios.
+
+disabled: false
+
+reporter:
+  logSpans: false
+  localAgentHostPort: "jaeger:6831"
+  queueSize: 1000000
+  bufferFlushInterval: 10
+
+sampler:
+  type: "probabilistic"
+  param: 1.0   # 1.0 = 100% sampling; lower for production-scale loads

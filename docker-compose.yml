@@ -1,0 +1,532 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Network shared by ALL containers
+# ─────────────────────────────────────────────────────────────────────────────
+networks:
+  social-network:
+    driver: bridge
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Volumes for persistent data
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  prometheus_data: {}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OBSERVABILITY SERVICES
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+
+  # ---------------------------------------------------------------------------
+  # Jaeger All-In-One  (collector + query + UI in a single container)
+  # UI:        http://localhost:16686
+  # Collector: UDP 6831 (compact thrift), HTTP 14268 (thrift binary)
+  # Metrics:   http://jaeger:14269/metrics  (scraped by Prometheus)
+  # ---------------------------------------------------------------------------
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: jaeger
+    hostname: jaeger
+    restart: always
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=200000
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor  — per-container CPU / memory / network metrics
+  # Metrics:   http://localhost:8088/metrics  (scraped by Prometheus)
+  # ---------------------------------------------------------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    hostname: cadvisor
+    restart: always
+    privileged: true
+    # NOTE: On Windows, cAdvisor requires WSL2 backend with Docker socket exposed.
+    # If cAdvisor fails to start, it can be disabled — Jaeger traces still work.
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8088:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - social-network
+    depends_on:
+      - jaeger
+
+  # ---------------------------------------------------------------------------
+  # Prometheus — scrapes cAdvisor + Jaeger metrics
+  # UI:         http://localhost:9090
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    hostname: prometheus
+    restart: always
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - social-network
+    depends_on:
+      - cadvisor
+      - jaeger
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # DEATHSTARBENCH — SOCIAL NETWORK MICROSERVICES
+  # All services mount ./config so they pick up jaeger-config.yml
+  # All services get JAEGER_AGENT_HOST/PORT env vars pointing to jaeger container
+  # ─────────────────────────────────────────────────────────────────────────
+
+  # ---------------------------------------------------------------------------
+  # nginx front-end (Thrift RPC gateway)
+  # HTTP:  http://localhost:8080
+  # ---------------------------------------------------------------------------
+  nginx-thrift:
+    image: yg397/openresty-thrift:xenial
+    container_name: nginx-thrift
+    hostname: nginx-thrift
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - jaeger
+      - user-service
+      - compose-post-service
+      - home-timeline-service
+      - user-timeline-service
+      - url-shorten-service
+      - user-mention-service
+      - media-service
+      - text-service
+      - social-graph-service
+      - post-storage-service
+    # Volumes sourced from dsb/ (populated by scripts/setup_dsb.ps1)
+    volumes:
+      - ./dsb/socialNetwork/nginx-web-server/lua-scripts:/usr/local/openresty/nginx/lua-scripts
+      - ./dsb/socialNetwork/nginx-web-server/pages:/usr/local/openresty/nginx/pages
+      - ./dsb/socialNetwork/nginx-web-server/conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      - ./dsb/socialNetwork/nginx-web-server/jaeger-config.json:/usr/local/openresty/nginx/jaeger-config.json
+      - ./dsb/socialNetwork/gen-lua:/gen-lua
+      - ./dsb/socialNetwork/docker/openresty-thrift/zookeeper.ini:/etc/zookeeper/zookeeper.ini
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Social Graph Service
+  # ---------------------------------------------------------------------------
+  social-graph-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: social-graph-service
+    hostname: social-graph-service
+    restart: always
+    entrypoint: SocialGraphService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - social-graph-mongodb
+      - social-graph-redis
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  social-graph-mongodb:
+    image: mongo:4.4.6
+    container_name: social-graph-mongodb
+    hostname: social-graph-mongodb
+    restart: always
+    networks:
+      - social-network
+
+  social-graph-redis:
+    image: redis:6.2-alpine
+    container_name: social-graph-redis
+    hostname: social-graph-redis
+    restart: always
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Home Timeline Service
+  # ---------------------------------------------------------------------------
+  home-timeline-redis:
+    image: redis:6.2-alpine
+    container_name: home-timeline-redis
+    hostname: home-timeline-redis
+    restart: always
+    networks:
+      - social-network
+
+  home-timeline-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: home-timeline-service
+    hostname: home-timeline-service
+    restart: always
+    entrypoint: HomeTimelineService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - home-timeline-redis
+      - post-storage-service
+      - social-graph-service
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Compose Post Service
+  # ---------------------------------------------------------------------------
+  compose-post-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: compose-post-service
+    hostname: compose-post-service
+    restart: always
+    entrypoint: ComposePostService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - user-service
+      - unique-id-service
+      - media-service
+      - post-storage-service
+      - user-timeline-service
+      - url-shorten-service
+      - user-mention-service
+      - home-timeline-service
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Post Storage Service
+  # ---------------------------------------------------------------------------
+  post-storage-mongodb:
+    image: mongo:4.4.6
+    container_name: post-storage-mongodb
+    hostname: post-storage-mongodb
+    restart: always
+    networks:
+      - social-network
+
+  post-storage-memcached:
+    image: memcached:1.6-alpine
+    container_name: post-storage-memcached
+    hostname: post-storage-memcached
+    restart: always
+    networks:
+      - social-network
+
+  post-storage-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: post-storage-service
+    hostname: post-storage-service
+    restart: always
+    entrypoint: PostStorageService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - post-storage-mongodb
+      - post-storage-memcached
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # User Timeline Service
+  # ---------------------------------------------------------------------------
+  user-timeline-mongodb:
+    image: mongo:4.4.6
+    container_name: user-timeline-mongodb
+    hostname: user-timeline-mongodb
+    restart: always
+    networks:
+      - social-network
+
+  user-timeline-redis:
+    image: redis:6.2-alpine
+    container_name: user-timeline-redis
+    hostname: user-timeline-redis
+    restart: always
+    networks:
+      - social-network
+
+  user-timeline-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: user-timeline-service
+    hostname: user-timeline-service
+    restart: always
+    entrypoint: UserTimelineService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - user-timeline-mongodb
+      - user-timeline-redis
+      - post-storage-service
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # URL Shorten Service
+  # ---------------------------------------------------------------------------
+  url-shorten-mongodb:
+    image: mongo:4.4.6
+    container_name: url-shorten-mongodb
+    hostname: url-shorten-mongodb
+    restart: always
+    networks:
+      - social-network
+
+  url-shorten-memcached:
+    image: memcached:1.6-alpine
+    container_name: url-shorten-memcached
+    hostname: url-shorten-memcached
+    restart: always
+    networks:
+      - social-network
+
+  url-shorten-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: url-shorten-service
+    hostname: url-shorten-service
+    restart: always
+    entrypoint: UrlShortenService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - url-shorten-mongodb
+      - url-shorten-memcached
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # User Mention Service
+  # ---------------------------------------------------------------------------
+  user-mention-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: user-mention-service
+    hostname: user-mention-service
+    restart: always
+    entrypoint: UserMentionService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - user-memcached
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # User Service
+  # ---------------------------------------------------------------------------
+  user-mongodb:
+    image: mongo:4.4.6
+    container_name: user-mongodb
+    hostname: user-mongodb
+    restart: always
+    networks:
+      - social-network
+
+  user-memcached:
+    image: memcached:1.6-alpine
+    container_name: user-memcached
+    hostname: user-memcached
+    restart: always
+    networks:
+      - social-network
+
+  user-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: user-service
+    hostname: user-service
+    restart: always
+    entrypoint: UserService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - user-mongodb
+      - user-memcached
+      - social-graph-service
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Media Service
+  # ---------------------------------------------------------------------------
+  media-mongodb:
+    image: mongo:4.4.6
+    container_name: media-mongodb
+    hostname: media-mongodb
+    restart: always
+    networks:
+      - social-network
+
+  media-memcached:
+    image: memcached:1.6-alpine
+    container_name: media-memcached
+    hostname: media-memcached
+    restart: always
+    networks:
+      - social-network
+
+  media-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: media-service
+    hostname: media-service
+    restart: always
+    entrypoint: MediaService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - media-mongodb
+      - media-memcached
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Text Service
+  # ---------------------------------------------------------------------------
+  text-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: text-service
+    hostname: text-service
+    restart: always
+    entrypoint: TextService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+      - url-shorten-service
+      - user-mention-service
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network
+
+  # ---------------------------------------------------------------------------
+  # Unique-ID Service
+  # ---------------------------------------------------------------------------
+  unique-id-service:
+    image: deathstarbench/social-network-microservices:latest
+    container_name: unique-id-service
+    hostname: unique-id-service
+    restart: always
+    entrypoint: UniqueIdService
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    volumes:
+      - ./config:/social-network-microservices/config
+    networks:
+      - social-network

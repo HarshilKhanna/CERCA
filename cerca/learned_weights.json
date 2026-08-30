@@ -1,0 +1,12 @@
+{
+    "service_p99_latency_ms": -0.1373035245246944,
+    "service_span_count": 0.09536666147415632,
+    "service_std_latency_ms": -0.1347235093757072,
+    "service_fan_out_mean": 0.10366629811155437,
+    "total_traces": 0.06586966220195836,
+    "service_trace_participation_rate": 0.1068791208587289,
+    "metric_samples_available": 0.07384017732446628,
+    "service_latency_cv": 0.1020685553646804,
+    "service_p95_latency_ms": -0.07339727200746622,
+    "service_mean_latency_ms": -0.06231534224801364
+}

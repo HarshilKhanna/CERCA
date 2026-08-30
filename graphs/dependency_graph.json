@@ -1,0 +1,240 @@
+{
+  "nodes": [
+    {
+      "id": "compose-post-service"
+    },
+    {
+      "id": "home-timeline-service"
+    },
+    {
+      "id": "media-service"
+    },
+    {
+      "id": "nginx-web-server"
+    },
+    {
+      "id": "post-storage-service"
+    },
+    {
+      "id": "social-graph-service"
+    },
+    {
+      "id": "text-service"
+    },
+    {
+      "id": "unique-id-service"
+    },
+    {
+      "id": "url-shorten-service"
+    },
+    {
+      "id": "user-mention-service"
+    },
+    {
+      "id": "user-service"
+    },
+    {
+      "id": "user-timeline-service"
+    }
+  ],
+  "edges": [
+    {
+      "source": "compose-post-service",
+      "target": "home-timeline-service",
+      "call_count": 4719,
+      "mean_latency_ms": 1.271,
+      "p50_latency_ms": 1.099,
+      "p95_latency_ms": 2.207,
+      "p99_latency_ms": 4.806,
+      "error_rate": 0.0,
+      "top_operations": "write_home_timeline_server"
+    },
+    {
+      "source": "compose-post-service",
+      "target": "user-timeline-service",
+      "call_count": 4719,
+      "mean_latency_ms": 1.363,
+      "p50_latency_ms": 1.245,
+      "p95_latency_ms": 2.244,
+      "p99_latency_ms": 4.323,
+      "error_rate": 0.0,
+      "top_operations": "write_user_timeline_server"
+    },
+    {
+      "source": "text-service",
+      "target": "user-mention-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.938,
+      "p50_latency_ms": 1.017,
+      "p95_latency_ms": 1.913,
+      "p99_latency_ms": 3.291,
+      "error_rate": 0.0,
+      "top_operations": "compose_user_mentions_server"
+    },
+    {
+      "source": "text-service",
+      "target": "url-shorten-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.013,
+      "p50_latency_ms": 0.01,
+      "p95_latency_ms": 0.016,
+      "p99_latency_ms": 0.049,
+      "error_rate": 0.0,
+      "top_operations": "compose_urls_server"
+    },
+    {
+      "source": "compose-post-service",
+      "target": "media-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.01,
+      "p50_latency_ms": 0.009,
+      "p95_latency_ms": 0.015,
+      "p99_latency_ms": 0.042,
+      "error_rate": 0.0,
+      "top_operations": "compose_media_server"
+    },
+    {
+      "source": "home-timeline-service",
+      "target": "social-graph-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.338,
+      "p50_latency_ms": 0.313,
+      "p95_latency_ms": 0.483,
+      "p99_latency_ms": 0.948,
+      "error_rate": 0.0,
+      "top_operations": "get_followers_server"
+    },
+    {
+      "source": "nginx-web-server",
+      "target": "compose-post-service",
+      "call_count": 4719,
+      "mean_latency_ms": 7.695,
+      "p50_latency_ms": 7.023,
+      "p95_latency_ms": 13.115,
+      "p99_latency_ms": 24.044,
+      "error_rate": 0.0,
+      "top_operations": "compose_post_server"
+    },
+    {
+      "source": "compose-post-service",
+      "target": "user-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.011,
+      "p50_latency_ms": 0.01,
+      "p95_latency_ms": 0.016,
+      "p99_latency_ms": 0.039,
+      "error_rate": 0.0,
+      "top_operations": "compose_creator_server"
+    },
+    {
+      "source": "compose-post-service",
+      "target": "unique-id-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.026,
+      "p50_latency_ms": 0.022,
+      "p95_latency_ms": 0.033,
+      "p99_latency_ms": 0.086,
+      "error_rate": 0.0,
+      "top_operations": "compose_unique_id_server"
+    },
+    {
+      "source": "compose-post-service",
+      "target": "text-service",
+      "call_count": 4719,
+      "mean_latency_ms": 2.1,
+      "p50_latency_ms": 1.826,
+      "p95_latency_ms": 3.593,
+      "p99_latency_ms": 7.022,
+      "error_rate": 0.0,
+      "top_operations": "compose_text_server"
+    },
+    {
+      "source": "compose-post-service",
+      "target": "post-storage-service",
+      "call_count": 4719,
+      "mean_latency_ms": 0.721,
+      "p50_latency_ms": 0.619,
+      "p95_latency_ms": 1.005,
+      "p99_latency_ms": 2.015,
+      "error_rate": 0.0,
+      "top_operations": "store_post_server"
+    },
+    {
+      "source": "home-timeline-service",
+      "target": "post-storage-service",
+      "call_count": 3573,
+      "mean_latency_ms": 2.147,
+      "p50_latency_ms": 1.919,
+      "p95_latency_ms": 4.078,
+      "p99_latency_ms": 7.817,
+      "error_rate": 0.0,
+      "top_operations": "post_storage_read_posts_server"
+    },
+    {
+      "source": "nginx-web-server",
+      "target": "home-timeline-service",
+      "call_count": 3573,
+      "mean_latency_ms": 2.934,
+      "p50_latency_ms": 2.506,
+      "p95_latency_ms": 5.16,
+      "p99_latency_ms": 10.064,
+      "error_rate": 0.0,
+      "top_operations": "read_home_timeline_server"
+    },
+    {
+      "source": "nginx-web-server",
+      "target": "user-timeline-service",
+      "call_count": 3468,
+      "mean_latency_ms": 2.18,
+      "p50_latency_ms": 1.91,
+      "p95_latency_ms": 4.024,
+      "p99_latency_ms": 6.918,
+      "error_rate": 0.0,
+      "top_operations": "read_user_timeline_server"
+    },
+    {
+      "source": "user-timeline-service",
+      "target": "post-storage-service",
+      "call_count": 3468,
+      "mean_latency_ms": 1.057,
+      "p50_latency_ms": 0.843,
+      "p95_latency_ms": 2.531,
+      "p99_latency_ms": 3.92,
+      "error_rate": 0.0,
+      "top_operations": "post_storage_read_posts_server"
+    },
+    {
+      "source": "nginx-web-server",
+      "target": "social-graph-service",
+      "call_count": 112,
+      "mean_latency_ms": 1.017,
+      "p50_latency_ms": 0.918,
+      "p95_latency_ms": 1.458,
+      "p99_latency_ms": 1.676,
+      "error_rate": 0.0,
+      "top_operations": "follow_server"
+    },
+    {
+      "source": "nginx-web-server",
+      "target": "user-service",
+      "call_count": 20,
+      "mean_latency_ms": 1.332,
+      "p50_latency_ms": 1.302,
+      "p95_latency_ms": 2.594,
+      "p99_latency_ms": 2.791,
+      "error_rate": 0.0,
+      "top_operations": "register_user_withid_server"
+    },
+    {
+      "source": "user-service",
+      "target": "social-graph-service",
+      "call_count": 12,
+      "mean_latency_ms": 0.494,
+      "p50_latency_ms": 0.43,
+      "p95_latency_ms": 0.772,
+      "p99_latency_ms": 0.818,
+      "error_rate": 0.0,
+      "top_operations": "insert_user_server"
+    }
+  ]
+}

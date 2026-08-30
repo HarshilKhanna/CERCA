@@ -1,0 +1,80 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Prometheus scrape configuration
+# Targets:
+#   1. cAdvisor        → per-container CPU / memory / network metrics
+#   2. Jaeger admin    → span ingestion rates, queue depths
+#   3. Prometheus self → self-monitoring
+# ─────────────────────────────────────────────────────────────────────────────
+
+global:
+  scrape_interval:     15s   # How frequently to scrape targets
+  evaluation_interval: 15s   # How frequently to evaluate rules
+  scrape_timeout:      10s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Alerting (optional — no alert rules configured yet)
+# ─────────────────────────────────────────────────────────────────────────────
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Scrape configs
+# ─────────────────────────────────────────────────────────────────────────────
+scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # ---------------------------------------------------------------------------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor — container-level resource metrics
+  # Provides per-container labels:
+  #   container_label_com_docker_compose_service  → service name (e.g. user-service)
+  #   container_label_com_docker_container_name   → container name
+  # Key metrics collected:
+  #   container_cpu_usage_seconds_total
+  #   container_memory_usage_bytes
+  #   container_memory_working_set_bytes
+  #   container_network_receive_bytes_total
+  #   container_network_transmit_bytes_total
+  #   container_fs_reads_bytes_total
+  #   container_fs_writes_bytes_total
+  # ---------------------------------------------------------------------------
+  - job_name: "cadvisor"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          service: "cadvisor"
+    metric_relabel_configs:
+      # Keep only containers that belong to the social-network compose project
+      - source_labels: [container_label_com_docker_compose_project]
+        regex: "cerca"
+        action: keep
+      # Drop noisy, high-cardinality internal cAdvisor metrics
+      - source_labels: [__name__]
+        regex: "container_tasks_state|container_memory_failures_total"
+        action: drop
+
+  # ---------------------------------------------------------------------------
+  # Jaeger admin endpoint — span / trace ingestion metrics
+  # Key metrics:
+  #   jaeger_collector_spans_received_total
+  #   jaeger_collector_spans_saved_by_svc_total
+  #   jaeger_collector_traces_saved_by_svc_total
+  #   jaeger_agent_reporter_spans_submitted_total
+  #   jaeger_query_requests_total
+  # ---------------------------------------------------------------------------
+  - job_name: "jaeger"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["jaeger:14269"]
+        labels:
+          service: "jaeger"

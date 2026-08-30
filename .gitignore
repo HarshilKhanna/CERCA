@@ -1,0 +1,21 @@
+# Large datasets and traces
+dsb/socialNetwork/datasets/social-graph/
+data/
+experiments/
+*.edges
+*.csv
+telemetry_features/outputs/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Temporary generated scripts
+write*.py
+verify_dois.py
+verified_papers.json
