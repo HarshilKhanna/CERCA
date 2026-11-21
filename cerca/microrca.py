@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import time
 import networkx as nx
 import pandas as pd
 import numpy as np
@@ -51,6 +52,7 @@ def compute_timeseries(spans_df: pd.DataFrame, metrics_df: pd.DataFrame, window_
     return ts
 
 def evaluate_true_microrca(features_df: pd.DataFrame, graph_path: str, exp_id: str, drop_nodes: list = None) -> pd.DataFrame:
+    t0 = time.perf_counter()
     df = features_df.copy()
     df.set_index("service", inplace=True)
     
@@ -58,7 +60,9 @@ def evaluate_true_microrca(features_df: pd.DataFrame, graph_path: str, exp_id: s
     if "service_latency_cv" not in df.columns:
         df["score"] = 0.0
         df["rank"] = range(1, len(df) + 1)
-        return df.reset_index()[["service", "rank", "score"]]
+        res = df.reset_index()[["service", "rank", "score"]]
+        res.attrs["latency_ms"] = (time.perf_counter() - t0) * 1000.0
+        return res
         
     anomalous_service = df["service_latency_cv"].idxmax()
     
@@ -157,4 +161,6 @@ def evaluate_true_microrca(features_df: pd.DataFrame, graph_path: str, exp_id: s
     df = df.sort_values(by="score", ascending=False)
     df["rank"] = range(1, len(df) + 1)
     
-    return df.reset_index()[["service", "rank", "score"]]
+    res = df.reset_index()[["service", "rank", "score"]]
+    res.attrs["latency_ms"] = (time.perf_counter() - t0) * 1000.0
+    return res

@@ -54,9 +54,16 @@ scrape_configs:
         labels:
           service: "cadvisor"
     metric_relabel_configs:
-      # Keep only containers that belong to the social-network compose project
+      # Keep containers that belong to the DeathStarBench social-network compose project.
+      # NOTE: The project label value is set by Docker Compose from the directory name.
+      #       DeathStarBench uses 'socialnetwork'; adjust if your clone dir differs.
       - source_labels: [container_label_com_docker_compose_project]
-        regex: "cerca"
+        regex: "socialnetwork|cerca|social.network"
+        action: keep
+      # Also keep containers where the project label is absent (some cAdvisor versions
+      # do not propagate compose labels — keep all non-empty service labels as fallback).
+      - source_labels: [container_label_com_docker_compose_service]
+        regex: ".+"
         action: keep
       # Drop noisy, high-cardinality internal cAdvisor metrics
       - source_labels: [__name__]

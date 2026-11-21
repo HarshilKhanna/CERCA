@@ -1,0 +1,14 @@
+{
+  "n_repeats": 200,
+  "hardware": "AMD Ryzen 7 7840HS @ 3.80 GHz, 16 GB DDR5, Windows 11",
+  "cerca_mean_ms": 6.2823835005110595,
+  "cerca_std_ms": 3.188506121533792,
+  "cerca_p50_ms": 4.949300004227553,
+  "cerca_p95_ms": 13.450334995286532,
+  "microrca_mean_ms": 1.4045310001529288,
+  "microrca_std_ms": 0.08846999109685584,
+  "microrca_p50_ms": 1.3758999994024634,
+  "microrca_p95_ms": 1.5609800095262472,
+  "speedup_mean": 0.223566581065717,
+  "note": "Pure algorithmic latency only. Graph JSON pre-loaded before timing loop. CSV parsing, disk I/O, and plot generation excluded."
+}

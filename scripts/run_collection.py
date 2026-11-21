@@ -38,6 +38,7 @@ Exit codes: 0 = success, 1 = connectivity failure, 2 = script failure
 
 import argparse
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -140,16 +141,29 @@ def run_script(script_name: str, extra_args: list[str]) -> int:
 
 
 def archive_outputs(timestamp: str):
-    """Copy data/ and graphs/ into experiments/<timestamp>/."""
+    """Copy current run data and graphs/ into experiments/<timestamp>/."""
     exp_dir = EXPERIMENTS_DIR / timestamp
     exp_dir.mkdir(parents=True, exist_ok=True)
 
-    for src_dir in [PROJECT_ROOT / "data", PROJECT_ROOT / "graphs"]:
-        if src_dir.exists():
-            dst = exp_dir / src_dir.name
-            if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(src_dir, dst)
+    dst_graphs = exp_dir / "graphs"
+    if (PROJECT_ROOT / "graphs").exists():
+        if dst_graphs.exists():
+            shutil.rmtree(dst_graphs)
+        shutil.copytree(PROJECT_ROOT / "graphs", dst_graphs)
+
+    dst_data_raw = exp_dir / "data" / "raw"
+    dst_data_proc = exp_dir / "data" / "processed"
+    dst_data_raw.mkdir(parents=True, exist_ok=True)
+    dst_data_proc.mkdir(parents=True, exist_ok=True)
+
+    # Copy the latest files corresponding to this run
+    for subdir, pat in [("raw", "traces_*.json"), ("raw", "metrics_*.json"),
+                        ("processed", "spans_*.csv"), ("processed", "metrics_*.csv")]:
+        matches = list((PROJECT_ROOT / "data" / subdir).glob(pat))
+        if matches:
+            latest = max(matches, key=os.path.getmtime)
+            dst = dst_data_raw if subdir == "raw" else dst_data_proc
+            shutil.copy2(latest, dst / latest.name)
 
     log.info("Outputs archived → %s", exp_dir)
     return exp_dir

@@ -1,0 +1,19 @@
+{
+  "analysis_note": "Incident-level paired analysis. N=7 independent fault incidents. Degradation levels are repeated-measures factors, NOT independent observations. The previously reported t=5.738 (p=0.00028) was invalid (pooled 10 degradation levels x 7 incidents as 70 independent observations).",
+  "pristine_cerca_mean_rr": 0.31481331168831167,
+  "pristine_mrca_mean_rr": 0.324636544011544,
+  "pristine_mean_rr_diff": -0.009595435245310247,
+  "pristine_rr_diff_ci_low": -0.13601068722943718,
+  "pristine_rr_diff_ci_high": 0.11095698051948032,
+  "pristine_wilcoxon_W": 409.5,
+  "pristine_wilcoxon_p": 0.19066034660305575,
+  "pristine_significant": false,
+  "deg20_cerca_mean_rr": 0.2986281773781774,
+  "deg20_mrca_mean_rr": 0.28878246753246756,
+  "deg20_mean_rr_diff": 0.009930738816738813,
+  "deg20_rr_diff_ci_low": -0.10347032307969808,
+  "deg20_rr_diff_ci_high": 0.1147382825507825,
+  "deg20_wilcoxon_W": 426.0,
+  "deg20_wilcoxon_p": 0.07191275926631287,
+  "deg20_significant": false
+}

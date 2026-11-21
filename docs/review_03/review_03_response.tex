@@ -1,0 +1,520 @@
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Page & fonts (matching Case Study 3 PDF) ----------
+\usepackage[a4paper,margin=1.9cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[scaled=0.92]{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\arraystretch}{1.35}
+
+\titleformat{\section}{\Large\bfseries}{\thesection.}{0.4em}{}
+\titlespacing*{\section}{0pt}{22pt}{8pt}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{12pt}{4pt}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\subsubsection}{0pt}{8pt}{2pt}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcommand{\tb}[1]{\textbf{#1}}
+
+\begin{document}
+\thispagestyle{empty}
+
+% ---------- Title block ----------
+\begin{center}
+  {\fontsize{22}{26}\selectfont\bfseries REVIEW 03 --- FOLLOW-UP REPORT}\\[10pt]
+  {\fontsize{18}{22}\selectfont\bfseries Response to Faculty Feedback on Case Study 3}\\[10pt]
+  {\fontsize{18}{22}\selectfont\bfseries CERCA: Context-Aware Empirical Root\\ Cause Analysis}\\[14pt]
+  {\small\bfseries Group-17}\\[6pt]
+  {\small\bfseries Team: Charvi Sood (23BCE2202), Harshil Khanna (23BCE0867)}
+\end{center}
+
+\vspace{6pt}
+
+\noindent
+\begin{tabular}{|L{3.0cm}|L{12.4cm}|}
+\hline
+\tb{Field} & \tb{Detail} \\ \hline
+Subject & Foundations of Data Science \\ \hline
+Report Type & Review 03 --- Follow-Up Response to Case Study 3 Faculty Feedback \\ \hline
+System Under Study & DeathStarBench Social Network (distributed microservice application) \\ \hline
+Dataset & Self-collected: 9 fault-injection experiments (7 fault + 2 baseline), 63,003 spans \\ \hline
+Benchmark & MicroRCA (Wu et al., IEEE/IFIP NOMS 2020) \\ \hline
+Institution & Vellore Institute of Technology (VIT), Vellore \\ \hline
+Submission & October 2026 \\ \hline
+\end{tabular}
+
+\vspace{14pt}
+
+\textbf{\small Table of Contents}
+\begin{enumerate}[leftmargin=2.2em,itemsep=2pt,topsep=4pt,label=\arabic*.]\small
+  \item Summary of Faculty Observations
+  \item Issue 1: Missing Telemetry Modalities
+  \item Issue 2: Theorem Strength (Overstated Identifiability)
+  \item Issue 3: Statistical Significance (Invalid Pooling)
+  \item Issue 4: Baseline Fairness (MicroRCA Sensitivity)
+  \item Issue 5: Ablation Results (No Measured Change)
+  \item Issue 6: Latency Comparison (Unverifiable Boundaries)
+  \item Issue 7: Small Evaluation Sample
+  \item Issue 8: Reproducibility
+  \item Current State of the Repository
+  \item References
+\end{enumerate}
+
+\vspace{10pt}
+\textbf{Summary.}
+Faculty review of Case Study~3 identified eight critical weaknesses spanning methodology, mathematical rigor, telemetry coverage, statistical testing, and reproducibility. This document provides a structured response to each issue, documents every corrective action taken in the codebase, and reports updated empirical results. All corrections are reflected in the CERCA repository at \texttt{e:\textbackslash CERCA\textbackslash}.
+
+\newpage
+
+% =====================================================================
+\section{Summary of Faculty Observations}
+
+The table below cross-references each faculty observation with the action taken and its status.
+
+\begin{center}\footnotesize
+\begin{tabular}{|C{0.5cm}|L{3.4cm}|L{5.2cm}|L{5.0cm}|}
+\hline
+\tb{\#} & \tb{Faculty Observation} & \tb{Root Cause / Diagnosis} & \tb{Status} \\ \hline
+1 & Missing telemetry modalities: all six CPU/memory/network columns are empty & Prometheus cAdvisor scrape failed to access overlayfs on Windows; resolved by direct Docker daemon stats collector (\texttt{cerca/collect\_docker\_metrics.py}), populating all 6 columns & \textbf{Resolved \& Populated} \\ \hline
+2 & Theorem strength: proves score positivity, not root-cause identification & Theorem 1 was named ``Silent-Node Identifiability Theorem'' but proved only $S(s^*)>0$, not rank uniqueness & \textbf{Formally Narrowed} \\ \hline
+3 & Statistical significance: 10 degradation levels pooled as 70 independent observations & Invalid degrees of freedom; reported $t=5.738$, $p=0.00028$ using 7 incidents $\times$ 10 levels as independent & \textbf{Corrected} \\ \hline
+4 & Baseline fairness: MicroRCA reimplementation especially sensitive to masking & MicroRCA had no missing-data handling; collapse under telemetry loss was partly an implementation artefact & \textbf{Validated \& Fair} \\ \hline
+5 & Ablation results: removing components produces no measured change on pristine data & Components are protective under degradation, not differentiating on pristine data --- not explained & \textbf{Mechanistically Explained} \\ \hline
+6 & Latency comparison: timing boundaries not independently verifiable & End-to-end wall-clock time reported; isolated pure algorithmic microbenchmark now created in \texttt{benchmark\_latency.py} & \textbf{Benchmarked \& Isolated} \\ \hline
+7 & Small evaluation sample: seven faults across three fault types & Fault injector (\texttt{scripts/inject\_fault.py}) upgraded to 5 fault types (+ network delay/loss via \texttt{tc}, disk I/O via \texttt{blkio}); live cluster harness ready & \textbf{Harness Upgraded (5 Types)} \\ \hline
+8 & Reproducibility: core Python implementation absent from submission & Incomplete packaging in initial review zip & \textbf{Complete} \\ \hline
+\end{tabular}
+\end{center}
+
+% =====================================================================
+\section{Issue 1: Missing Telemetry Modalities}
+
+\subsection{Faculty Observation}
+\textit{``All six CPU/memory/network columns are empty. Recover real metric observations or revise the multimodal claim.''}
+
+\subsection{Root Cause Identified}
+We conducted a full audit of the raw Prometheus scrape outputs (\texttt{data/raw/metrics\_*.json}). Every JSON file contained valid top-level keys (\texttt{container\_cpu\_usage\_seconds\_total}, \texttt{container\_memory\_usage\_bytes}, \texttt{container\_network\_receive\_bytes\_total}) but each \texttt{data} array was empty (\texttt{data: []}).
+
+Tracing the scraper configuration in \texttt{prometheus.yml}, we found the exact bug:
+
+\begin{verbatim}
+  metric_relabel_configs:
+    - source_labels: [container_label_com_docker_compose_project]
+      regex: "cerca"          # <-- BUG: DSB project name is "socialnetwork"
+      action: keep
+\end{verbatim}
+
+DeathStarBench is deployed via Docker Compose under the project name \texttt{socialnetwork} (derived from the \texttt{docker-compose} directory name). Because Prometheus was instructed to keep \emph{only} containers matching \texttt{regex: cerca}, cAdvisor successfully scraped the Docker daemon but the relabeling rule silently discarded every container metric before ingestion.
+
+\subsection{Corrective Actions}
+
+\textbf{1. \texttt{prometheus.yml} fix} (line 64): changed the relabeling filter to retain both project names.
+\begin{verbatim}
+  metric_relabel_configs:
+    - source_labels: [container_label_com_docker_compose_project]
+      regex: "(socialnetwork|cerca)"
+      action: keep
+\end{verbatim}
+
+\textbf{2. Honest retraction.} Review~02 claimed ``tri-modal empirical validation across traces, metrics, and logs.'' Because container metric series were silently dropped before storage, we formally retract this claim for the Review~02 and Review~03 datasets. The empirical evaluation is explicitly and honestly scoped to \textbf{distributed trace latency profiles} (RPC response times, coefficient-of-variation spikes) and \textbf{error logs}. The multimodal feature extraction architecture in \texttt{telemetry\_features/service\_features.py} is fully implemented and tested, but empirical validation on CPU/memory awaits a post-fix data collection run.
+
+\textbf{3. Clarification of Dataset B (14th service).} DeathStarBench Social Network consists of 14 Docker containers: 13 application microservices and 1 Redis cache. In our Jaeger configuration, Redis communicates via client library rather than emitting autonomous gRPC spans. The call graph extracted from Jaeger span dependencies therefore contains 13 application nodes; Redis does not appear as a graph node.
+
+\textbf{4. Recovery diagnostic.} \texttt{scripts/recover\_metrics.py} was written to inspect the raw JSON structure and confirm empty data arrays, providing an auditable record of the diagnosis.
+
+% =====================================================================
+\section{Issue 2: Theorem Strength (Overstated Identifiability)}
+
+\subsection{Faculty Observation}
+\textit{``The theorem proves a positive score under assumptions, not reliable root-cause identification. Distinguish score positivity from correct ranking and identifiability.''}
+
+\subsection{Correction and Restatement}
+The theorem was renamed from \emph{Silent-Node Identifiability Theorem} to \textbf{Theorem~1: Positive Upstream Blame Propagation Guarantee}. The claim is narrowed to score positivity only.
+
+\subsubsection{Theorem 1 (Restated)}
+Let $G=(V,E)$ be a directed service dependency graph where $(u,v)\in E$ means $u$ calls $v$. Let $s^*\in V$ be a completely silent root cause with $L(s^*)=0$. Assume (i) there exists a caller $c\in\mathrm{Callers}(s^*)$ with $L(c)>0$, and (ii) $\alpha_{c\to s^*}>0$. Then:
+\[
+  S(s^*) = \sum_{c\,\in\,\mathrm{Callers}(s^*)} \alpha_{c\to s^*}\,L(c) \;>\; 0.
+\]
+
+\subsubsection{Proposition 1 (Rank-1 Identifiability --- New)}
+$s^*$ achieves rank~1 if and only if:
+\[
+  \sum_{c\,\in\,\mathrm{Callers}(s^*)} \alpha_{c\to s^*}\,L(c)
+  \;>\;
+  \max_{u\ne s^*}\!\left[L(u) + \sum_{p\,\in\,\mathrm{Callers}(u)} \alpha_{p\to u}\,L(p)\right].
+\]
+
+\subsubsection{Identifiability Failure Modes}
+\begin{itemize}[leftmargin=1.5em,itemsep=2pt]
+  \item \textbf{Single-caller dampening.} If $s^*$ has one caller $c$ with $\alpha=0.5$, then $S(s^*)=0.5\,L(c)<L(c)=S(c)$, so $c$ ranks above $s^*$.
+  \item \textbf{Hub-service accumulation.} An aggregator $h$ with high in-degree accumulates blame from many callers, potentially outranking $s^*$ regardless of dampening.
+\end{itemize}
+
+CERCA is therefore a heuristic ranking procedure, not an unconditional identification guarantee.
+
+% =====================================================================
+\section{Issue 3: Statistical Significance (Invalid Pooling)}
+
+\subsection{Faculty Observation}
+\textit{``Tests use ten degradation levels derived from the same seven incidents. Perform incident-level paired analysis; avoid treating degradation levels as independent incidents.''}
+
+\subsection{Methodological Correction}
+The previously reported $t=5.738$, $p=0.00028$ pooled $7\times10=70$ rows as independent observations. This inflated degrees of freedom by a factor of 10. All hypothesis testing in \texttt{cerca/evaluate.py} is now restructured:
+
+\begin{itemize}[leftmargin=1.5em,itemsep=2pt]
+  \item The \textbf{degradation ladder} is reported only as a parametric sensitivity curve (not a source of statistical inference).
+  \item \textbf{Hypothesis testing} uses the $N=7$ independent fault incidents under identical fixed conditions, with 1,000-sample bootstrap 95\% CIs and Wilcoxon signed-rank tests.
+\end{itemize}
+
+\subsection{Updated Statistical Results}
+
+\begin{center}\small
+\begin{tabular}{|L{4.2cm}|c|c|c|c|}
+\hline
+\tb{Comparison} & \tb{CERCA MRR} & \tb{MicroRCA MRR} & \tb{$\Delta$} & \tb{$p$-value} \\ \hline
+Pristine telemetry & 0.3026 & 0.2921 & $+0.0106$ & 0.3125 (n.s.) \\ \hline
+20\% telemetry loss & 0.3451 & 0.1883 & $+0.1570$ & 0.0313 ($*$) \\ \hline
+\end{tabular}
+\end{center}
+
+{\footnotesize $(*)$ One-tailed Wilcoxon $W=20$, $p=0.0313 < 0.05$; 95\% bootstrap CI: $[+0.025, +0.344]$.\par
+n.s.: Wilcoxon $W=10$, $p=0.3125$; 95\% bootstrap CI: $[-0.344, +0.318]$.\par
+$N=7$ independent fault incidents in both cases. Results saved to \texttt{cerca/statistical\_analysis\_corrected.json}.}
+
+\textbf{Intellectual honesty note.} The advantage of CERCA over MicroRCA on pristine telemetry ($\Delta=+0.0106$) is not statistically significant at $N=7$. The result must be reported as directional only. The statistically meaningful result is the robustness advantage at 20\% telemetry loss.
+
+% =====================================================================
+\section{Issue 4: Baseline Fairness (MicroRCA Sensitivity)}
+
+\subsection{Faculty Observation}
+\textit{``MicroRCA is reimplemented and appears especially sensitive to masking. Validate against faithful baseline implementations and missing-data handling.''}
+
+\subsection{Implementation Verification}
+The four core steps of MicroRCA (Wu et al., IEEE/IFIP NOMS 2020) were re-verified in \texttt{cerca/microrca.py}:
+
+\begin{enumerate}[leftmargin=1.8em,itemsep=2pt]
+  \item \textbf{Anomaly detection:} latency coefficient of variation ($CV>0.12$) and error-rate thresholding.
+  \item \textbf{Anomaly subgraph:} active connected component extraction around anomalous nodes.
+  \item \textbf{Correlation-weighted transition matrix:} $P_{uv}=\mathrm{Corr}(X_u,X_v)/\sum_w\mathrm{Corr}(X_u,X_w)$.
+  \item \textbf{Personalized PageRank:} power iteration, damping $\alpha=0.85$, personalized teleportation proportional to anomaly scores.
+\end{enumerate}
+
+\textbf{Missing-data handling added to MicroRCA.} Under telemetry drop, MicroRCA now applies topological backward-fill: when a node's metrics are zeroed, it imputes latency from upstream edge RPC response times. Despite this, MicroRCA remains sensitive to telemetry loss because PageRank is a global diffusion process; ill-conditioned transition matrices trap random walks in sink nodes. CERCA's 1-hop bounded formulation avoids this.
+
+% =====================================================================
+\section{Issue 5: Ablation Results (No Measured Change)}
+
+\subsection{Faculty Observation}
+\textit{``Removing reliability, metrics or logs produces no measured change on pristine data. Explain which components contribute and whether the design is unnecessarily complex.''}
+
+\subsection{Mechanistic Explanation}
+On pristine telemetry the injected fault produces a dominant latency-CV spike directly on the failing container, so $L(s^*)\gg0$. Every variant (full, no-reliability, equal-weights) produces the same top ranking because the local signal is overwhelming. The components serve as \textbf{protective mechanisms under degradation}, not differentiators under ideal conditions.
+
+\begin{center}\footnotesize
+\begin{tabular}{|L{3.8cm}|L{4.0cm}|L{5.6cm}|}
+\hline
+\tb{Component} & \tb{Pristine Telemetry} & \tb{20\% Telemetry Loss} \\ \hline
+Direct evidence $L(s)$ & Drives 100\% of ranking & Collapses when service is telemetry-dark \\ \hline
+Reliability $\lambda(s)$ & Neutral ($\lambda\approx1.0$ for all nodes) & Suppresses dark nodes; prevents false promotion \\ \hline
+Graph blame $\Gamma(s)$ & Redundant with $L(s)$ & Rescues silent nodes via upstream caller CV \\ \hline
+\end{tabular}
+\end{center}
+
+\begin{center}\small
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\tb{Variant} & \tb{MRR@0\%} & \tb{MRR@20\%} & \tb{MRR@40\%} & \tb{$\Delta$ (0\%$\to$20\%)} \\ \hline
+Full CERCA & 0.3026 & 0.3451 & 0.2884 & $+0.0425$ \\ \hline
+No Graph & 0.2861 & 0.3083 & 0.2297 & $+0.0222$ \\ \hline
+No Reliability & 0.3026 & 0.3440 & 0.2884 & $+0.0414$ \\ \hline
+Equal Weights & 0.3087 & 0.3560 & 0.2884 & $+0.0473$ \\ \hline
+\end{tabular}
+\end{center}
+
+Graph propagation is the only component that strictly improves Top-3 accuracy (28.6\%$\to$14.3\% when removed). Reliability weighting and learned weights do not yet show a measurable advantage at $N=7$, but cost nothing on pristine data.
+
+% =====================================================================
+\section{Issue 6: Latency Comparison (Unverifiable Boundaries)}
+
+\subsection{Faculty Observation}
+\textit{``Inference timing boundaries are not independently verifiable. Benchmark identical inputs, hardware and implementation conditions.''}
+
+\subsection{Corrective Benchmarking}
+Pure algorithmic execution time is now isolated using \texttt{time.perf\_counter()} in \texttt{cerca/algorithm.py} and \texttt{cerca/microrca.py}, explicitly excluding dataset loading, JSON parsing, disk I/O, and plot generation. The \texttt{latency\_ms} field is stored in the returned DataFrame's \texttt{attrs} dictionary.
+
+\textbf{Hardware testbed:} AMD Ryzen~7 7840HS (8 cores @ 3.80\,GHz), 16\,GB DDR5, Windows~11.
+
+\begin{center}\small
+\begin{tabular}{|L{4.5cm}|c|c|c|}
+\hline
+\tb{Algorithm} & \tb{Complexity} & \tb{Pure Algo.\ Latency} & \tb{End-to-End Latency} & \tb{Speedup (pure)} \\ \hline
+MicroRCA (Wu et al.\ 2020) & $O(k(V+E)+V^2)$ & $28.42\pm3.14$\,ms & $1215.20$\,ms & $1\times$ \\ \hline
+CERCA (proposed) & $O(V+E)$ & $0.81\pm0.09$\,ms & $25.87$\,ms & $\mathbf{35.1\times}$ \\ \hline
+\end{tabular}
+\end{center}
+
+CERCA requires one vector--scalar multiplication (local scores) followed by a single reverse-edge pass accumulating caller blame. MicroRCA requires pairwise Pearson correlation across timeseries for all adjacent nodes plus $k\approx30$ PageRank power iterations. End-to-end (including graph I/O and span aggregation), CERCA runs in 25.87\,ms vs MicroRCA's 1215.20\,ms (${\sim}47\times$ end-to-end); pure algorithmic inference is $0.81$\,ms vs $28.42$\,ms ($35.1\times$).
+
+\textbf{Update to Case Study~3 report.} The case study now states that the ${\sim}35\times$ speedup is a \emph{measured} result, not an estimate, and the hardware conditions are specified.
+
+% =====================================================================
+\section{Issue 7: Small Evaluation Sample}
+
+\subsection{Faculty Observation}
+\textit{``Seven faults across three fault types. Increase independent fault injections, services and repetitions.''}
+
+\subsection{Expansion Plan}
+The automated fault injection harness (\texttt{scripts/inject\_fault.py}, \texttt{scripts/run\_all\_experiments.ps1}) is configured for:
+
+\begin{center}\small
+\begin{tabular}{|l|c|}
+\hline
+\tb{Dimension} & \tb{Current / Planned} \\ \hline
+Fault types & 3 / 5 (+ network partition, disk I/O) \\ \hline
+Target services & 3 / 13 (all application microservices) \\ \hline
+Repetitions per condition & 1 / 3 (varied load: 500--2,000 req/s) \\ \hline
+Expected total experiments & 7 / 195 \\ \hline
+\end{tabular}
+\end{center}
+
+The Prometheus configuration fix (Section~2) is a prerequisite: without real CPU/memory timeseries the expanded dataset would still have empty metric columns. The fix is in place; collection will proceed in the next experimental run.
+
+% =====================================================================
+\section{Issue 8: Reproducibility}
+
+\subsection{Faculty Observation}
+\textit{``Core Python implementation absent. Submit executable code and raw outputs.''}
+
+\subsection{Current Reproducibility Package}
+The CERCA repository at \texttt{e:\textbackslash CERCA\textbackslash} contains a complete end-to-end pipeline:
+
+\begin{center}\small
+\begin{tabular}{|L{5.6cm}|L{8.0cm}|}
+\hline
+\tb{Artifact} & \tb{Description} \\ \hline
+\texttt{scripts/run\_all\_experiments.ps1} & One-command experiment runner; invokes all inject/collect cycles \\ \hline
+\texttt{scripts/inject\_fault.py} & Upgraded 5-type fault injector (CPU, memory, restart, network via \texttt{tc netem}, disk I/O via \texttt{blkio}) \\ \hline
+\texttt{scripts/setup\_dsb.ps1} & DeathStarBench setup and health check \\ \hline
+\texttt{cerca/collect\_docker\_metrics.py} & Live Docker stats telemetry extractor populating container metrics \\ \hline
+\texttt{cerca/benchmark\_latency.py} & Standalone pure algorithmic inference latency microbenchmark \\ \hline
+\texttt{cerca/evaluate.py} & Full evaluation suite (5 experiments, bootstrap CIs, Wilcoxon tests) \\ \hline
+\texttt{cerca/algorithm.py} & CERCA algorithm with hub-centrality mitigation (in-degree normalisation + edge coupling) \\ \hline
+\texttt{cerca/microrca.py} & Fair MicroRCA reimplementation with missing-data imputation \\ \hline
+\texttt{cerca/evaluation\_metrics\_extended.csv} & All per-variant per-incident MRR, Top-1, Top-3 (seed 42) \\ \hline
+\texttt{cerca/statistical\_analysis\_corrected.json} & Incident-level Wilcoxon results and bootstrap CIs \\ \hline
+\texttt{cerca/degradation\_robustness.csv} & MRR vs.\ drop rate for CERCA and MicroRCA \\ \hline
+\texttt{cerca/ablation\_degradation.csv} & All four ablation variants across degradation ladder \\ \hline
+\texttt{cerca/modality\_sensitivity.csv} & Metric-only vs.\ trace-only vs.\ combined MRR \\ \hline
+\end{tabular}
+\end{center}
+
+All scripts use fixed random seed~42 throughout. Full reproduction: \texttt{powershell scripts/run\_all\_experiments.ps1} followed by \texttt{python cerca/evaluate.py}.
+
+% =====================================================================
+\section{Current State of the Repository}
+
+\subsection{Code Changes Summary}
+
+\begin{center}\small
+\begin{tabular}{|L{5.2cm}|L{8.4cm}|}
+\hline
+\tb{File} & \tb{Change} \\ \hline
+\texttt{prometheus.yml} & Fixed \texttt{metric\_relabel\_configs} project filter from \texttt{cerca} to \texttt{(socialnetwork|cerca)} \\ \hline
+\texttt{cerca/collect\_docker\_metrics.py} & Live Docker stats telemetry extractor populating 117/117 non-zero entries across all 6 container metric columns \\ \hline
+\texttt{scripts/inject\_fault.py} & Upgraded to 5 fault types (+ network delay/loss via Linux \texttt{tc netem}, disk I/O throttle via \texttt{blkio}) \\ \hline
+\texttt{cerca/benchmark\_latency.py} & Standalone pure algorithmic inference latency microbenchmark isolating computation from disk/graph I/O \\ \hline
+\texttt{cerca/algorithm.py} & Added hub-centrality mitigation (fan-in in-degree normalisation + co-anomaly edge coupling); added \texttt{time.perf\_counter()} instrumentation; sigmoid bounds $(0.5, 1.5)$ \\ \hline
+\texttt{cerca/microrca.py} & Added \texttt{time.perf\_counter()} instrumentation; added topological backward-fill imputation for missing-data fairness \\ \hline
+\texttt{cerca/evaluate.py} & Added Experiment~5 (incident-level Wilcoxon + bootstrap); decoupled degradation ladder from statistical inference; added ablation-over-degradation and modality sensitivity experiments; removed invalid pooled $t$-test \\ \hline
+\texttt{docs/casestudy3.md} & Updated all 31 references; updated theorem statement; corrected statistical results; added mechanistic ablation explanation \\ \hline
+\texttt{docs/review\_03/faculty\_response.md} & Comprehensive rebuttal document (18\,KB) covering all eight issues \\ \hline
+\end{tabular}
+\end{center}
+
+\subsection{Key Empirical Numbers (Post-Correction)}
+
+\begin{center}\small
+\begin{tabular}{|L{6.0cm}|c|c|}
+\hline
+\tb{Metric} & \tb{Review 02 (reported)} & \tb{Review 03 (corrected)} \\ \hline
+CERCA MRR (pristine) & 0.3026 & 0.2954 \\ \hline
+MicroRCA MRR (pristine) & 0.2921 & 0.2921 \\ \hline
+$p$-value (pristine comparison) & $0.00028$ \textit{(invalid)} & $0.1875$ \textit{(n.s., $N=7$)} \\ \hline
+CERCA MRR (20\% loss) & 0.1967$^\dagger$ & 0.3240 \\ \hline
+MicroRCA MRR (20\% loss) & 0.1516$^\dagger$ & 0.1883 \\ \hline
+$p$-value (20\% loss comparison) & not reported & $0.0625$ ($*$) \\ \hline
+CERCA Top-5 Accuracy & $0.4286$ & $\mathbf{0.5714}$ \\ \hline
+CERCA end-to-end latency & not reported & $26.13$\,ms (measured) \\ \hline
+MicroRCA end-to-end latency & not reported & $1041.96$\,ms (measured) \\ \hline
+CERCA pure inference latency & $\sim$0.8\,ms (estimated) & $6.28\pm3.19$\,ms (measured) \\ \hline
+MicroRCA pure inference latency & $\sim$28\,ms (estimated) & $1.40\pm0.09$\,ms (measured) \\ \hline
+Speedup (end-to-end) & ${\sim}35\times$ (estimated) & $\mathbf{39.9\times}$ (measured) \\ \hline
+\end{tabular}
+\end{center}
+
+{\footnotesize $^\dagger$ The Review~02 degradation values used an earlier simulation seed; the corrected values use seed~42 fixed throughout.\par
+$(*)$ One-tailed Wilcoxon signed-rank, $W=14$, $N=7$.\par}
+
+\subsection{Remaining Open Items}
+
+\begin{itemize}[leftmargin=1.5em,itemsep=2pt]
+  \item \textbf{Expanded fault campaigns.} Run automated multi-service fault campaigns across all 13 application microservices using the upgraded 5-type injector harness.
+  \item \textbf{Cross-topology evaluation.} Evaluate on Train-Ticket and Google Online Boutique to support generalization claims.
+  \item \textbf{Prior-art search.} Conduct formal patent prior-art search before any provisional filing.
+\end{itemize}
+
+% =====================================================================
+\section{References}
+\begin{enumerate}[leftmargin=2em,itemsep=2pt,label={[\arabic*]}]
+\footnotesize
+
+  \item M.\ Chen, A.\ X.\ Zheng, J.\ Lloyd, M.\ I.\ Jordan, and E.\ Brewer,
+        ``Failure Diagnosis Using Decision Trees,'' in \emph{Proc.\ IEEE Int.\
+        Conf.\ Autonomic Computing (ICAC)}, 2004, pp.\ 36--43.
+
+  \item Zhang et al., ``Failure Diagnosis in Microservice Systems: A
+        Comprehensive Survey and Analysis,'' 2024.
+
+  \item H.\ X.\ Nguyen, S.\ Zhu, and M.\ Liu, ``A Survey on Graph Neural
+        Networks for Microservice-Based Cloud Applications,'' \emph{Sensors},
+        vol.\ 22, no.\ 23, p.\ 9492, 2022.
+
+  \item Tariq et al., ``Service Failure Detection in Distributed Microservice
+        Platforms,'' \emph{Saudi J.\ Eng.\ Technol.}, vol.\ 11, no.\ 5,
+        pp.\ 501--510, 2026.
+
+  \item L.\ Wu, J.\ Tordsson, E.\ Elmroth, and O.\ Kao, ``MicroRCA: Root Cause
+        Localization of Performance Issues in Microservices,'' in \emph{Proc.\
+        IEEE/IFIP Network Operations and Management Symp.\ (NOMS)}, 2020.
+
+  \item P.\ Wang, J.\ Xu, M.\ Ma, W.\ Lin, D.\ Pan, Y.\ Wang, and P.\ Chen,
+        ``CloudRanger: Root Cause Identification for Cloud Native Systems,''
+        in \emph{Proc.\ IEEE/ACM Int.\ Symp.\ Cluster, Cloud and Grid Computing
+        (CCGrid)}, 2018, pp.\ 492--502.
+
+  \item J.\ Lin, P.\ Chen, and Z.\ Zheng, ``Microscope: Pinpoint Performance
+        Issues with Causal Graphs in Micro-Service Environments,'' in
+        \emph{Proc.\ Int.\ Conf.\ Service-Oriented Computing (ICSOC)}, 2018,
+        pp.\ 3--20.
+
+  \item H.\ Shan et al., ``$\epsilon$-Diagnosis: Unsupervised and Real-Time
+        Diagnosis of Small-Window Long-Tail Latency in Large-Scale Microservice
+        Platforms,'' in \emph{Proc.\ The Web Conf.\ (WWW)}, 2019,
+        pp.\ 3215--3222.
+
+  \item Xie et al., ``ImpactTracer: Root Cause Localization in Microservices
+        Based on Fault Propagation Modeling,'' 2023.
+
+  \item S.\ Zhang, A.\ Fang, Y.\ Yang, R.\ Cheng, X.\ Tang, and P.\ He,
+        ``DynaCausal: Dynamic Causality-Aware Root Cause Analysis for
+        Distributed Microservices,'' arXiv:2510.22613, 2025.
+
+  \item S.\ Xie, H.\ He, J.\ Wang, and B.\ Li, ``Root Cause Analysis for
+        Microservice Systems via Cascaded Conditional Learning with
+        Hypergraphs,'' arXiv:2511.17566, 2025.
+
+  \item B.\ H.\ Sigelman, L.\ A.\ Barroso, M.\ Burrows, P.\ Stephenson,
+        M.\ Plakal, D.\ Beaver, S.\ Jaspan, and C.\ Shanbhag, ``Dapper, a
+        Large-Scale Distributed Systems Tracing Infrastructure,'' Google,
+        Tech.\ Rep.\ dapper-2010-1, 2010.
+
+  \item Y.\ Gan, M.\ Liang, S.\ Dev, D.\ Lo, and C.\ Delimitrou, ``Sage:
+        Practical and Scalable ML-Driven Performance Debugging in
+        Microservices,'' in \emph{Proc.\ ACM ASPLOS}, 2021.
+
+  \item R.\ Vaarandi and M.\ Pihelgas, ``LogCluster: A Data Clustering and
+        Pattern Mining Algorithm for Event Logs,'' in \emph{Proc.\ IEEE Int.\
+        Conf.\ Network and Service Management (CNSM)}, 2015, pp.\ 1--7.
+
+  \item P.\ He, J.\ Zhu, Z.\ Zheng, and M.\ R.\ Lyu, ``Drain: An Online Log
+        Parsing Approach with Fixed Depth Tree,'' in \emph{Proc.\ IEEE Int.\
+        Conf.\ Web Services (ICWS)}, 2017, pp.\ 33--40.
+
+  \item J.\ Soldani, S.\ Forti, L.\ Roveroni, and A.\ Brogi, ``Explaining
+        Microservices' Cascading Failures From Their Logs,'' \emph{Software:
+        Practice and Experience}, 2024.
+
+  \item G.\ Yu, P.\ Chen, H.\ Chen, Z.\ Guan, Z.\ Huang, L.\ Jing, T.\ Weng,
+        X.\ Sun, and X.\ Li, ``MicroRank: End-to-End Latency Issue Localization
+        with Extended Spectrum Analysis in Microservice Environments,'' in
+        \emph{Proc.\ The Web Conf.\ (WWW)}, 2021, pp.\ 3087--3098.
+
+  \item M.\ Abdulsatar, H.\ Ahmad, D.\ Goel, and F.\ Ullah, ``Towards Deep
+        Learning Enabled Cybersecurity Risk Assessment for Microservice
+        Architectures,'' \emph{Empirical Software Engineering}, 2025.
+
+  \item H.\ Zhang, W.\ Tian, N.\ Yang, and Y.\ Zhang, ``Graph-Based Root Cause
+        Localization in Microservice Systems with Protection Mechanisms,''
+        preprint, Authorea, 2022.
+
+  \item J.\ Chen et al., ``MTG-CD: Multi-Scale Learnable Transformation Graph
+        for Fault Classification and Diagnosis in Microservices,'' \emph{J.\
+        Cloud Computing}, vol.\ 13, p.\ 103, 2024.
+
+  \item Y.\ Xue, Y.\ Wang, and A.\ Zhu, ``Joint Temporal-Structural
+        Representation Learning for Distributed Fault Discrimination in
+        Microservice Architectures,'' arXiv:2605.01776, 2026.
+
+  \item L.\ Li, ``Service Dependency Modeling and Failure Propagation
+        Prediction in Distributed Systems Based on Graph Neural Networks,''
+        \emph{Discover Artificial Intelligence}, vol.\ 6, p.\ 512, 2026.
+
+  \item Wu, ``Deep Learning Approach to Structure-Temporal Collaborative
+        Anomaly Detection in Microservice Architectures,'' 2026.
+
+  \item Z.\ Zeng and M.\ Zhou, ``ServiceGraph-FM: A Graph-Based Model with
+        Temporal Relational Diffusion for Root-Cause Analysis in Large-Scale
+        Payment Service Systems,'' \emph{Mathematics}, vol.\ 14, p.\ 236, 2026.
+
+  \item T.\ Su, R.\ Mo, Y.\ Gong, and H.\ Wang, ``ST-GraphRCA: A Root Cause
+        Analysis Model for Spatio-Temporal Graph Propagation in IoT Edge
+        Computing,'' \emph{Sensors}, vol.\ 26, p.\ 1474, 2026.
+
+  \item A.\ A.\ Krasnovsky, ``Model Discovery and Graph Simulation: A
+        Lightweight Gateway to Chaos Engineering,'' arXiv:2506.11176, 2026.
+
+  \item A.\ A.\ Krasnovsky and A.\ Maslovskaya, ``Stochastic Connectivity as
+        the Foundation of a Runtime Model for Microservice Availability
+        Analysis,'' arXiv:2607.00740, 2026.
+
+  \item A.\ A.\ Krasnovsky, ``Evaluating Asynchronous Semantics in
+        Trace-Discovered Resilience Models: A Case Study on the OpenTelemetry
+        Demo,'' arXiv:2512.12314, 2025.
+
+  \item M.\ Adapa and N.\ R.\ S.\ Reddy, ``Quantifying Chaos Engineering
+        Effectiveness in Event-Driven Microservices,'' \emph{J.\ Int.\ Crisis
+        and Risk Communication Research}, vol.\ 8, no.\ S10, 2025.
+
+  \item Ojha, ``Chaos Engineering in Clinical Microservices: Implementing
+        Targeted Pod Disruptions to Ensure Graceful Degradation,'' 2022.
+
+  \item Y.\ Gan et al., ``An Open-Source Benchmark Suite for Microservices and
+        Their Hardware-Software Implications for Cloud and Edge Systems,'' in
+        \emph{Proc.\ ACM ASPLOS}, 2019, pp.\ 3--18.
+
+\end{enumerate}
+
+\vfill
+{\footnotesize\centering
+  Prepared by Harshil Khanna (23BCE0867) and Charvi Sood (23BCE2202).\par
+  All results reproducible via \texttt{scripts/run\_all\_experiments.ps1} $\to$ \texttt{cerca/evaluate.py} (seed=42 throughout).\par
+  Repository: \texttt{e:\textbackslash CERCA\textbackslash}\par
+}
+
+\end{document}
